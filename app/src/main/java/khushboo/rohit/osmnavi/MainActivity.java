@@ -1,0 +1,594 @@
+package khushboo.rohit.osmnavi;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.FragmentManager;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentSender;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.location.Location;
+import android.media.MediaRecorder;
+import android.media.MediaScannerConnection;
+import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.StrictMode;
+import android.speech.tts.TextToSpeech;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import org.osmdroid.api.IMapController;
+import org.osmdroid.bonuspack.routing.MapQuestRoadManager;
+import org.osmdroid.bonuspack.routing.OSRMRoadManager;
+import org.osmdroid.bonuspack.routing.Road;
+import org.osmdroid.bonuspack.routing.RoadManager;
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
+import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Polyline;
+
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
+import com.google.android.gms.common.GooglePlayServicesRepairableException;
+import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.places.AutocompleteFilter;
+import com.google.android.gms.location.places.Place;
+import com.google.android.gms.location.places.Places;
+import com.google.android.gms.location.places.ui.PlaceAutocomplete;
+import com.google.android.gms.location.places.ui.PlaceAutocompleteFragment;
+import com.google.android.gms.location.places.ui.PlaceSelectionListener;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.Locale;
+import java.util.UUID;
+
+public class MainActivity extends FragmentActivity implements GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener, LocationListener {
+
+    MyItemizedOverlay myItemizedOverlay = null;
+    SQLiteDatabase db;
+    private MediaRecorder myAudioRecorder;
+    private String outputFile = null;
+    boolean isNavigating = false;
+    long time_diff = 60*1000;
+    Handler h = new Handler();
+    int delay = 1000; //milliseconds
+    Button start,stop;
+    TextToSpeech tts;
+    int prev_id = 0;
+    ArrayList<GeoPoint> landmarks;
+    ArrayList<String> instructions;
+    ArrayList<Long> timestamps;
+    RoadManager roadManager;
+    Location mLastLocation;
+    private GoogleApiClient mGoogleApiClient;
+    private LocationRequest mLocationRequest;
+    PlaceAutocompleteFragment endingDestination;
+    Place destinationLatLng;
+    boolean isSelected = false;
+    GPSTracker gps;
+    MyApp app;
+    double current_lat, current_long;
+    private String TAG = MainActivity.class.getSimpleName();
+
+    @Override public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (PackageManager.PERMISSION_GRANTED !=
+                checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1339);
+        }
+        if (PackageManager.PERMISSION_GRANTED !=
+                checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1340);
+        }
+        if (PackageManager.PERMISSION_GRANTED !=
+                checkSelfPermission(Manifest.permission.RECORD_AUDIO)) {
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 1341);
+        }
+        StrictMode.ThreadPolicy policy = new
+        StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.setThreadPolicy(policy);
+        landmarks = new ArrayList<GeoPoint>();
+        instructions = new ArrayList<String>();
+        timestamps = new ArrayList<Long>();
+//        MapView map = (MapView) findViewById(R.id.map);
+//        map.setTileSource(TileSourceFactory.MAPNIK);
+//        map.setBuiltInZoomControls(true);
+//        map.setMultiTouchControls(true);
+
+//        GeoPoint startPoint = new GeoPoint(28.544837,77.194259);
+//        IMapController mapController = map.getController();
+//        mapController.setZoom(9);
+//        mapController.setCenter(startPoint);
+        roadManager = new MapQuestRoadManager("NSmn1F81WDzC9UVc5AdW54E0uMn1ozEG");
+//        ArrayList<GeoPoint> waypoints = new ArrayList<GeoPoint>();
+//        waypoints.add(startPoint);
+//        GeoPoint endPoint = new GeoPoint(28.545213,77.192219);
+//        waypoints.add(endPoint);
+//        roadManager.addRequestOption("routeType=pedestrian");
+//        Road road = roadManager.getRoad(waypoints);
+//        Polyline roadOverlay = RoadManager.buildRoadOverlay(road);
+//        map.getOverlays().add(roadOverlay);
+//        for (int i=0; i<road.mNodes.size(); i++){
+//            System.out.println(road.mNodes.get(i).mLocation.getLatitude() + ", " + road.mNodes.get(i).mLocation.getLongitude());
+//            System.out.println(road.mNodes.get(i).mInstructions);
+//        }
+//        map.invalidate();
+
+
+
+        setContentView(R.layout.activity_main);
+        db=openOrCreateDatabase("StudentDB", Context.MODE_PRIVATE, null);
+        db.execSQL("CREATE TABLE IF NOT EXISTS myLocation(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT,long INT,description VARCHAR, timestamp INT, prev_id INT, next_id INT );");
+        db.execSQL("CREATE TABLE IF NOT EXISTS myTags(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag VARCHAR );");
+        db.execSQL("CREATE TABLE IF NOT EXISTS locationByTag(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag_id INTEGER, location_id INTEGER);");
+        db.execSQL("CREATE TABLE IF NOT EXISTS trackData(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT, long INT );");
+        tts = new TextToSpeech(MainActivity.this, new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                // TODO Auto-generated method stub
+                if(status == TextToSpeech.SUCCESS){
+//                    int result=tts.setLanguage(Locale.US);
+//                    if(result==TextToSpeech.LANG_MISSING_DATA ||
+//                            result==TextToSpeech.LANG_NOT_SUPPORTED){
+//                        Log.e("error", "This Language is not supported");
+//                    }
+                    if (!app.hasRefreshed) {
+                        System.out.println("Starting app");
+                        tts.speak("Thank you for installing OSM Navi. Enter any destination and press top button to start navigating. Use the second button to save a landmark at the current location.", TextToSpeech.QUEUE_FLUSH, null);
+                        app.hasRefreshed = true;
+                    }
+//                    else{
+//                        ConvertTextToSpeech();
+//                    }
+                }
+                else
+                    Log.e("error", "Initialization Failed!");
+            }
+        });
+
+//        gps = new GPSTracker(this);
+
+        buildGoogleApiClient();
+        app = (MyApp) this.getApplicationContext();
+        endingDestination = (PlaceAutocompleteFragment) getFragmentManager().findFragmentById(R.id.ending_destination_2);
+        LatLng southWestBound = new LatLng(7.597576, 67.345201);
+        LatLng northEastBound = new LatLng(38.733380, 96.964342);
+        LatLngBounds indiaBounds = new LatLngBounds(southWestBound, northEastBound);
+        endingDestination.setBoundsBias(indiaBounds);
+        endingDestination.setOnPlaceSelectedListener(new PlaceSelectionListener() {
+            @Override
+            public void onPlaceSelected(Place place) {
+                isSelected = true;
+                // TODO: Get info about the selected place.
+                destinationLatLng = place;
+                Log.i("endingDestination ", "Place: " + place.getName());
+            }
+
+            @Override
+            public void onError(Status status) {
+                // TODO: Handle the error.
+                Log.i("endingDestination ", "An error occurred: " + status);
+            }
+        });
+
+        h.postDelayed(new Runnable(){
+            public void run(){
+                getLocalInfo();
+                h.postDelayed(this, delay);
+            }
+        }, delay);
+
+
+
+    }
+
+
+    public void changeLayout(View view){
+        Intent i = new Intent(getBaseContext(), AddButton.class);
+        startActivityForResult(i, 1);
+    }
+
+    synchronized void buildGoogleApiClient() {
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(LocationServices.API)
+                .build();
+
+
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        mGoogleApiClient.connect();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        tts.shutdown();
+        mGoogleApiClient.disconnect();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+
+        if (requestCode == 1) {
+            if(resultCode == Activity.RESULT_OK){
+                String myDescription = data.getStringExtra("result");
+                boolean[] tags = data.getBooleanArrayExtra("tags");
+                double lat_float = current_lat;
+                double long_float = current_long;
+                int lat_int = (int) (lat_float * 10000000);
+                int long_int = (int) (long_float * 10000000);
+
+
+                int new_row_id;
+                if (prev_id > 0) {
+                    Cursor c = db.rawQuery("SELECT * from myLocation where id = '" + prev_id + "'", null);
+                    c.moveToFirst();
+                    int next_id;
+                    next_id = Integer.parseInt(c.getString(6)); // The next id of prev, if present
+                    c.close();
+
+                    // update the next id of new point with this, and update the next id of previous one. If next id was 0, it will remain 0
+                    db.execSQL("INSERT INTO myLocation VALUES(NULL, '" + lat_int + "','" +
+                            long_int + "','" + myDescription + "','" + System.currentTimeMillis() +
+                            "','"+ prev_id +"','"+ next_id +"');");
+                    Cursor c_new = db.rawQuery("SELECT last_insert_rowid()",null);
+                    c_new.moveToFirst();
+                    new_row_id = Integer.parseInt(c_new.getString(0));
+                    c_new.close();
+                    db.execSQL("UPDATE myLocation SET next_id = '" + new_row_id + "' WHERE id = '" + prev_id + "'");
+                } else {
+                    db.execSQL("INSERT INTO myLocation VALUES(NULL, '" + lat_int + "','" +
+                            long_int + "','" + myDescription + "','" + System.currentTimeMillis() +
+                            "','"+ prev_id +"','0');");
+                    Cursor c_new = db.rawQuery("SELECT last_insert_rowid()",null);
+                    c_new.moveToFirst();
+                    new_row_id = Integer.parseInt(c_new.getString(0));
+                    c_new.close();
+                }
+                prev_id = new_row_id;
+                for (int i = 0; i < tags.length; i++) {
+                    if (tags[i]) {
+                        db.execSQL("INSERT INTO locationByTag VALUES(NULL, " + (i+1) + ", " + prev_id + ");");
+                    }
+                }
+            }
+            if (resultCode == Activity.RESULT_CANCELED) {
+                //Write your code if there's no result
+            }
+        }
+    }
+
+    public void setAudio(View view){
+        System.out.println( Environment.getExternalStorageDirectory().getAbsolutePath());
+        outputFile = Environment.getExternalStorageDirectory().getAbsolutePath() + "/recording.3gp";;
+
+        myAudioRecorder=new MediaRecorder();
+        myAudioRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        myAudioRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        myAudioRecorder.setAudioEncoder(MediaRecorder.OutputFormat.AMR_NB);
+
+        myAudioRecorder.setOutputFile(outputFile);
+
+        setContentView(R.layout.record_view);
+        start=(Button)findViewById(R.id.button6);
+        stop=(Button)findViewById(R.id.button7);
+        start.setEnabled(true);
+        stop.setEnabled(false);
+
+    }
+
+    public void start_audio(View view){
+        try {
+            myAudioRecorder.prepare();
+            myAudioRecorder.start();
+        }
+
+        catch (IllegalStateException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        catch (java.io.IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        stop.setEnabled(true);
+        start.setEnabled(false);
+        Toast.makeText(getApplicationContext(), "Recording started", Toast.LENGTH_LONG).show();
+    }
+    public void stop_audio(View view){
+        myAudioRecorder.stop();
+        myAudioRecorder.release();
+        myAudioRecorder  = null;
+
+        stop.setEnabled(false);
+        start.setEnabled(false);
+
+        Toast.makeText(getApplicationContext(), "Audio recorded successfully",Toast.LENGTH_LONG).show();
+
+
+    }
+
+    public void onStartButton(View view) {
+        Button button = (Button) findViewById(R.id.button8);
+        if (!isNavigating) {
+//            EditText edit =  (EditText) findViewById(R.id.editText2);
+//            String destination = edit.getText().toString();
+            if (!isSelected) {
+                tts.speak("Destination not set", TextToSpeech.QUEUE_FLUSH, null);
+                Toast.makeText(getApplicationContext(), "Destination not set!", Toast.LENGTH_LONG).show();
+                return;
+            }
+            GeoPoint startPoint = new GeoPoint(current_lat, current_long);
+            //            GeoPoint endPoint = new GeoPoint(Double.parseDouble(destination.split(",")[0]), Double.parseDouble(destination.split(",")[1]));
+            GeoPoint endPoint = new GeoPoint(destinationLatLng.getLatLng().latitude, destinationLatLng.getLatLng().longitude);
+            ArrayList<GeoPoint> waypoints = new ArrayList<GeoPoint>();
+            waypoints.add(startPoint);
+            waypoints.add(endPoint);
+            roadManager.addRequestOption("routeType=pedestrian");
+            double max_latitude = current_lat;
+            double min_latitude = current_lat;
+            double max_longitude = current_long;
+            double min_longitude = current_long;
+
+            Road road = roadManager.getRoad(waypoints);
+            for (int i = 0; i < road.mNodes.size(); i++) {
+                GeoPoint loc = road.mNodes.get(i).mLocation;
+                landmarks.add(new GeoPoint(loc.getLatitude(), loc.getLongitude()));
+                System.out.println("Added: " + loc.getLatitude() + ", " + loc.getLongitude());
+                instructions.add(removeUnnamed(road.mNodes.get(i).mInstructions));
+                timestamps.add(new Long(0));
+                if (loc.getLatitude() > max_latitude) {
+                    max_latitude = loc.getLatitude();
+                }
+                if (loc.getLatitude() < min_latitude) {
+                    min_latitude = loc.getLatitude();
+                }
+                if (loc.getLongitude() > max_longitude) {
+                    max_longitude = loc.getLongitude();
+                }
+                if (loc.getLongitude() < min_longitude) {
+                    min_longitude = loc.getLongitude();
+                }
+            }
+            int max_latitude_int = (int) (max_latitude * 10000000);
+            int max_longitude_int = (int) (max_longitude * 10000000);
+            int min_latitude_int = (int) (min_latitude * 10000000);
+            int min_longitude_int = (int) (min_longitude * 10000000);
+            Cursor c = db.rawQuery("SELECT * FROM myLocation WHERE lat BETWEEN " + (min_latitude_int) + " AND " + (max_latitude_int) + " AND long BETWEEN " + (min_longitude_int) + " AND " + (max_longitude_int), null);
+            while (c.moveToNext()) {
+                double latitude = Double.parseDouble(c.getString(1)) / 10000000;
+                double longitude = Double.parseDouble(c.getString(2)) / 10000000;
+                String description = c.getString(3);
+                landmarks.add(new GeoPoint(latitude, longitude));
+                instructions.add(description);
+                timestamps.add(new Long(0));
+            }
+            isNavigating = true;
+            tts.speak("Starting Navigation. Your location is " + distanceToStr(road.mLength) + " away.", TextToSpeech.QUEUE_FLUSH, null);
+            button.setText("Stop");
+        } else {
+            landmarks.clear();
+            instructions.clear();
+            timestamps.clear();
+            isNavigating = false;
+            button.setText("Start");
+        }
+    }
+
+    public void showDb(View view) {
+        StringBuffer buffer = new StringBuffer();
+        for (int i = 0; i < landmarks.size(); i++) {
+            buffer.append(i + " : " + instructions.get(i) + "\n");
+            buffer.append("Lat: " + landmarks.get(i).getLatitude() + " Long: " + landmarks.get(i).getLongitude());
+        }
+        Intent i = new Intent(getBaseContext(), ShowDb.class);
+        i.putExtra("db", buffer.toString());
+        startActivity(i);
+//        Toast.makeText(getApplicationContext(),buffer.toString(),Toast.LENGTH_LONG).show();
+    }
+
+    public String removeUnnamed(String instruction) {
+        return instruction.replaceAll("unnamed", "this");
+    }
+
+    public String distanceToStr(double length) {
+        String result;
+        if (length >= 100.0) {
+            result = this.getString(org.osmdroid.bonuspack.R.string.osmbonuspack_format_distance_kilometers, (int) (length)) + ", ";
+        } else if (length >= 1.0) {
+            result = this.getString(org.osmdroid.bonuspack.R.string.osmbonuspack_format_distance_kilometers, Math.round(length * 10) / 10.0) + ", ";
+        } else {
+            result = this.getString(org.osmdroid.bonuspack.R.string.osmbonuspack_format_distance_meters, (int) (length * 1000)) + ", ";
+        }
+        return result;
+    }
+
+
+    public void exportDb(View view) {
+        try {
+            File file = new File(this.getExternalFilesDir(null), "trace" + UUID.randomUUID().toString() + ".txt");
+            FileOutputStream fileOutput = new FileOutputStream(file);
+            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fileOutput);
+            Cursor c = db.rawQuery("SELECT * from trackData;", null);
+            while(c.moveToNext()) {
+                outputStreamWriter.write(c.getString(0) + "\t" + c.getString(1) + "\t" + c.getString(2) + "\n");
+//                Toast.makeText(getApplicationContext(), c.getString(1), Toast.LENGTH_LONG).show();
+            }
+            outputStreamWriter.flush();
+            fileOutput.getFD().sync();
+            outputStreamWriter.close();
+            MediaScannerConnection.scanFile(
+                    this,
+                    new String[]{file.getAbsolutePath()},
+                    null,
+                    null);
+            db.execSQL("DELETE from trackData;");
+            db.execSQL("UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='trackData';");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            Log.e("Exception", "File write failed: " + e.toString());
+        }
+        if (isNavigating) {
+            try {
+                File file = new File(this.getExternalFilesDir(null), "mypoints" + UUID.randomUUID().toString() + ".txt");
+
+                FileOutputStream fileOutput = new FileOutputStream(file);
+                OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fileOutput);
+                for (int i = 0; i < landmarks.size(); i++) {
+                    outputStreamWriter.write(i+1 + "\t" + landmarks.get(i).getLatitude() + "\t" + landmarks.get(i).getLongitude() + "\n");
+                }
+                outputStreamWriter.flush();
+                fileOutput.getFD().sync();
+                outputStreamWriter.close();
+                MediaScannerConnection.scanFile(
+                        this,
+                        new String[]{file.getAbsolutePath()},
+                        null,
+                        null);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                Log.e("Exception", "File write failed: " + e.toString());
+            }
+        }
+        Toast.makeText(getApplicationContext(), "Written to file", Toast.LENGTH_LONG).show();
+
+
+    }
+
+
+    //PRINT THE WHOLE DATABASE
+    public void showMessage1(View view){
+        for (int i = 0; i < landmarks.size(); i++) {
+            System.out.println("Landmarks: " + landmarks.get(i));
+            System.out.println("Instructions: " + instructions.get(i));
+        }
+        Cursor c=db.rawQuery("SELECT * FROM myLocation", null);
+        if(c.getCount()==0)
+        {
+            System.out.println("No records found");
+            return;
+        }
+        StringBuffer buffer=new StringBuffer();
+        while(c.moveToNext())
+        {
+            buffer.append("Latitude: "+c.getString(1)+"\n");
+            buffer.append("Longitude: "+c.getString(2)+"\n");
+            buffer.append("Description: "+c.getString(3)+"\n");
+            buffer.append("Id: " +c.getString(0)+"\n");
+            buffer.append("Previous Id: " +c.getString(5));
+            buffer.append("Next Id: " +c.getString(6)+"\n");
+        }
+
+        buffer.append("Location: " + current_lat + " " + current_long + "\n");
+        System.out.println("Location Details: \n" + buffer.toString());
+        Cursor cc=db.rawQuery("SELECT * FROM locationByTag", null);
+        while(cc.moveToNext())
+        {
+            buffer.append("Tag id: ");
+            buffer.append(cc.getString(1) + "\nNode id: ");
+            buffer.append(cc.getString(2) + "\n");
+        }
+        Intent i = new Intent(getBaseContext(), ShowDb.class);
+        i.putExtra("db", buffer.toString());
+        startActivity(i);
+//        Toast.makeText(getApplicationContext(),buffer.toString(),Toast.LENGTH_LONG).show();
+    }
+
+
+    // PRINT THE POINTS NEAR TO THE GIVEN POINT
+    public void getLocalInfo(View view){
+
+        Toast.makeText(getApplicationContext(), "Lat: "+current_lat + " Long: " + current_long, Toast.LENGTH_LONG).show();
+    }
+
+    public void getLocalInfo() {
+//        gps.getLocation();
+        if (isNavigating) {
+            double lat_float = current_lat;
+            double long_float = current_long;
+            db.execSQL("INSERT INTO trackData VALUES(NULL, " + (int) (current_lat * 10000000) + ", " + (int) (current_long * 10000000) + ");");
+            for (int i = 0; i < landmarks.size(); i++) {
+                if (Math.abs(landmarks.get(i).getLatitude() - lat_float) < 0.00006 && Math.abs(landmarks.get(i).getLongitude() - long_float) < 0.00006) {
+                    if (Math.abs(timestamps.get(i) - System.currentTimeMillis()) > 60000) {
+                        System.out.println("Lat_diff: " + Math.abs(landmarks.get(i).getLatitude() - lat_float));
+                        System.out.println("Long diff: " + Math.abs(landmarks.get(i).getLongitude() - long_float));
+                        Toast.makeText(getApplicationContext(), instructions.get(i), Toast.LENGTH_LONG).show();
+                        System.out.println("String found: " + instructions.get(i));
+                        tts.speak(instructions.get(i), TextToSpeech.QUEUE_FLUSH, null);
+                        timestamps.set(i, System.currentTimeMillis());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        mLocationRequest = LocationRequest.create();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setInterval(1000); // Update location every second
+
+        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+
+
+        mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
+                mGoogleApiClient);
+        if (mLastLocation != null) {
+            current_lat = mLastLocation.getLatitude();
+            current_long = mLastLocation.getLongitude();
+
+        }
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        buildGoogleApiClient();
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        current_lat = location.getLatitude();
+        current_long = location.getLongitude();
+    }
+}
