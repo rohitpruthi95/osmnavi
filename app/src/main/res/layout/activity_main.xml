@@ -18,6 +18,14 @@
         android:name="com.google.android.gms.location.places.ui.PlaceAutocompleteFragment"
         />
 
+    <ImageButton
+        android:id="@+id/btnSpeak2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@null"
+        android:onClick="promptSpeechInputView"
+        android:src="@drawable/ic_speaker_dark" />
+
     <View
         android:layout_width="fill_parent"
         android:layout_height="5sp"
@@ -96,17 +104,33 @@
         android:layout_height="5sp"
         android:background="#FFFFFF"/>
 
-    <Button
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+    <TableRow
+        android:layout_width="fill_parent"
         android:layout_weight="10"
-        android:text="Show Route Info"
-        android:textColor="#FFFFFF"
-        android:textSize="40sp"
-        android:background="#000000"
-        android:id="@+id/button9"
-        android:onClick="showDb" />
+        android:layout_height="wrap_content">
 
+        <Button
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Show Route Info"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:background="#000000"
+            android:id="@+id/button9"
+            android:onClick="showDb" />
+
+        <Button
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Save Special Pt."
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:background="#000000"
+            android:id="@+id/button10"
+            android:onClick="insertSpecial" />
+    </TableRow>
 </LinearLayout>
 
     <!--<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"-->

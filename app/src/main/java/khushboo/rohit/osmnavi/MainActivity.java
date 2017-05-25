@@ -3,8 +3,10 @@ package khushboo.rohit.osmnavi;
 import android.Manifest;
 import android.app.Activity;
 import android.app.FragmentManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -16,6 +18,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.StrictMode;
+import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -25,6 +28,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -70,6 +74,7 @@ import java.util.UUID;
 public class MainActivity extends FragmentActivity implements GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
+    private static final int REQ_CODE_SPEECH_INPUT = 3;
     MyItemizedOverlay myItemizedOverlay = null;
     SQLiteDatabase db;
     private MediaRecorder myAudioRecorder;
@@ -98,6 +103,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         if (PackageManager.PERMISSION_GRANTED !=
                 checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
             requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1339);
@@ -110,6 +116,10 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                 checkSelfPermission(Manifest.permission.RECORD_AUDIO)) {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 1341);
         }
+        IntentFilter filter = new IntentFilter(Intent.ACTION_MEDIA_BUTTON);//"android.intent.action.MEDIA_BUTTON"
+        MediaButtonIntentReceiver r = new MediaButtonIntentReceiver();
+        filter.setPriority(10000); //this line sets receiver priority
+        registerReceiver(r, filter);
         StrictMode.ThreadPolicy policy = new
         StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
@@ -140,14 +150,12 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
 //        }
 //        map.invalidate();
 
-
-
         setContentView(R.layout.activity_main);
         db=openOrCreateDatabase("StudentDB", Context.MODE_PRIVATE, null);
         db.execSQL("CREATE TABLE IF NOT EXISTS myLocation(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT,long INT,description VARCHAR, timestamp INT, prev_id INT, next_id INT );");
         db.execSQL("CREATE TABLE IF NOT EXISTS myTags(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag VARCHAR );");
         db.execSQL("CREATE TABLE IF NOT EXISTS locationByTag(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag_id INTEGER, location_id INTEGER);");
-        db.execSQL("CREATE TABLE IF NOT EXISTS trackData(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT, long INT );");
+        db.execSQL("CREATE TABLE IF NOT EXISTS trackData(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT, long INT, type INT, timestamp INT );");
         tts = new TextToSpeech(MainActivity.this, new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
@@ -207,6 +215,27 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
 
 
     }
+
+    public void promptSpeechInputView(View view) {
+        promptSpeechInput();
+    }
+
+    private void promptSpeechInput() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                getString(R.string.speech_prompt));
+        try {
+            startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
+        } catch (ActivityNotFoundException a) {
+            Toast.makeText(getApplicationContext(),
+                    getString(R.string.speech_not_supported),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
 
 
     public void changeLayout(View view){
@@ -285,6 +314,14 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
             }
             if (resultCode == Activity.RESULT_CANCELED) {
                 //Write your code if there's no result
+            }
+        }
+        else if (requestCode == REQ_CODE_SPEECH_INPUT) {
+            if (resultCode == RESULT_OK && null != data) {
+
+                ArrayList<String> result = data
+                        .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                endingDestination.setText(result.get(0));
             }
         }
     }
@@ -536,12 +573,16 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
         Toast.makeText(getApplicationContext(), "Lat: "+current_lat + " Long: " + current_long, Toast.LENGTH_LONG).show();
     }
 
+    public void insertSpecial(View view) {
+        db.execSQL("INSERT INTO trackData VALUES(NULL, " + (int) (current_lat * 10000000) + ", " + (int) (current_long * 10000000) + ", 2, " + System.currentTimeMillis() + ");");
+    }
+
     public void getLocalInfo() {
 //        gps.getLocation();
         if (isNavigating) {
             double lat_float = current_lat;
             double long_float = current_long;
-            db.execSQL("INSERT INTO trackData VALUES(NULL, " + (int) (current_lat * 10000000) + ", " + (int) (current_long * 10000000) + ");");
+            db.execSQL("INSERT INTO trackData VALUES(NULL, " + (int) (current_lat * 10000000) + ", " + (int) (current_long * 10000000) + ", 1, " + System.currentTimeMillis() + ");");
             for (int i = 0; i < landmarks.size(); i++) {
                 if (Math.abs(landmarks.get(i).getLatitude() - lat_float) < 0.00006 && Math.abs(landmarks.get(i).getLongitude() - long_float) < 0.00006) {
                     if (Math.abs(timestamps.get(i) - System.currentTimeMillis()) > 60000) {
