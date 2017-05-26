@@ -481,7 +481,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
             OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fileOutput);
             Cursor c = db.rawQuery("SELECT * from trackData;", null);
             while(c.moveToNext()) {
-                outputStreamWriter.write(c.getString(0) + "\t" + c.getString(1) + "\t" + c.getString(2) + "\n");
+                outputStreamWriter.write(c.getString(0) + "\t" + c.getString(1) + "\t" + c.getString(2) + "\t" + c.getString(3) + "\t" + c.getString(4) + "\n");
 //                Toast.makeText(getApplicationContext(), c.getString(1), Toast.LENGTH_LONG).show();
             }
             outputStreamWriter.flush();
