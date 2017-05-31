@@ -50,13 +50,29 @@
     <Button
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="30"
+        android:layout_weight="15"
         android:text="Add Text"
         android:textColor="#FFFFFF"
         android:textSize="50sp"
         android:background="#000000"
         android:id="@+id/button"
         android:onClick="changeLayout" />
+
+    <View
+        android:layout_width="fill_parent"
+        android:layout_height="5sp"
+        android:background="#FFFFFF"/>
+
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="15"
+        android:text="Saved routes"
+        android:textColor="#FFFFFF"
+        android:textSize="35sp"
+        android:background="#000000"
+        android:id="@+id/button_save"
+        android:onClick="onSaveButton" />
 
     <View
         android:layout_width="fill_parent"

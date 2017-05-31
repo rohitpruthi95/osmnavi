@@ -84,6 +84,8 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     Handler h = new Handler();
     int delay = 1000; //milliseconds
     Button start,stop;
+    Button button, save_button;
+    String navigatingDistance;
     TextToSpeech tts;
     int prev_id = 0;
     ArrayList<GeoPoint> landmarks;
@@ -151,11 +153,15 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
 //        map.invalidate();
 
         setContentView(R.layout.activity_main);
+        button = (Button) findViewById(R.id.button8);
+        save_button = (Button) findViewById(R.id.button_save);
         db=openOrCreateDatabase("StudentDB", Context.MODE_PRIVATE, null);
         db.execSQL("CREATE TABLE IF NOT EXISTS myLocation(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT,long INT,description VARCHAR, timestamp INT, prev_id INT, next_id INT );");
         db.execSQL("CREATE TABLE IF NOT EXISTS myTags(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag VARCHAR );");
         db.execSQL("CREATE TABLE IF NOT EXISTS locationByTag(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag_id INTEGER, location_id INTEGER);");
         db.execSQL("CREATE TABLE IF NOT EXISTS trackData(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT, long INT, type INT, timestamp INT );");
+        db.execSQL("CREATE TABLE IF NOT EXISTS routes(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name VARCHAR, distance VARCHAR);");
+        db.execSQL("CREATE TABLE IF NOT EXISTS routebyinstructions(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, routeid INTEGER, lat INT, long INT, description VARCHAR);");
         tts = new TextToSpeech(MainActivity.this, new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
@@ -315,13 +321,77 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
             if (resultCode == Activity.RESULT_CANCELED) {
                 //Write your code if there's no result
             }
-        }
-        else if (requestCode == REQ_CODE_SPEECH_INPUT) {
+        } else if (requestCode == 2) {
+            if (resultCode == RESULT_OK) {
+                String routeName = data.getStringExtra("name");
+                db.execSQL("INSERT INTO routes VALUES(NULL, '" + routeName + "', '" + navigatingDistance + "');");
+                Cursor c_new = db.rawQuery("SELECT last_insert_rowid()",null);
+                c_new.moveToFirst();
+                int new_row_id = Integer.parseInt(c_new.getString(0));
+                c_new.close();
+                for (int i = 0; i < instructions.size(); i++) {
+                    String instruction = instructions.get(i);
+                    double lat_float = landmarks.get(i).getLatitude();
+                    int lat_int = (int) (lat_float * 10000000);
+                    double long_float = landmarks.get(i).getLatitude();
+                    int long_int = (int) (long_float * 10000000);
+                    db.execSQL("INSERT INTO routebyinstructions VALUES(NULL, '" + new_row_id + "','" +
+                            lat_int + "','" + long_int + "','" + instruction + "');");
+                }
+            }
+        } else if (requestCode == REQ_CODE_SPEECH_INPUT) {
             if (resultCode == RESULT_OK && null != data) {
 
                 ArrayList<String> result = data
                         .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
                 endingDestination.setText(result.get(0));
+            }
+        } else if (requestCode == 4) {
+            if (resultCode == RESULT_OK) {
+                int selectedRoute = data.getIntExtra("selectedRoute", 0);
+                navigatingDistance = data.getStringExtra("selectedRouteDistance");
+                Cursor c = db.rawQuery("SELECT * FROM routebyinstructions where routeid = " + selectedRoute + ";", null);
+                double max_latitude = current_lat;
+                double min_latitude = current_lat;
+                double max_longitude = current_long;
+                double min_longitude = current_long;
+                while (c.moveToNext()) {
+                    double latitude = Double.parseDouble(c.getString(2)) / 10000000;
+                    double longitude = Double.parseDouble(c.getString(3)) / 10000000;
+                    String description = c.getString(4);
+                    landmarks.add(new GeoPoint(latitude, longitude));
+                    instructions.add(description);
+                    timestamps.add(new Long(0));
+                    if (latitude > max_latitude) {
+                        max_latitude = latitude;
+                    }
+                    if (latitude < min_latitude) {
+                        min_latitude = latitude;
+                    }
+                    if (longitude > max_longitude) {
+                        max_longitude = longitude;
+                    }
+                    if (longitude < min_longitude) {
+                        min_longitude = longitude;
+                    }
+                }
+                int max_latitude_int = (int) (max_latitude * 10000000);
+                int max_longitude_int = (int) (max_longitude * 10000000);
+                int min_latitude_int = (int) (min_latitude * 10000000);
+                int min_longitude_int = (int) (min_longitude * 10000000);
+                Cursor c2 = db.rawQuery("SELECT * FROM myLocation WHERE lat BETWEEN " + (min_latitude_int) + " AND " + (max_latitude_int) + " AND long BETWEEN " + (min_longitude_int) + " AND " + (max_longitude_int), null);
+                while (c2.moveToNext()) {
+                    double latitude = Double.parseDouble(c2.getString(1)) / 10000000;
+                    double longitude = Double.parseDouble(c2.getString(2)) / 10000000;
+                    String description = c2.getString(3);
+                    landmarks.add(new GeoPoint(latitude, longitude));
+                    instructions.add(description);
+                    timestamps.add(new Long(0));
+                }
+                isNavigating = true;
+                tts.speak("Starting Navigation. Your location is " + navigatingDistance + " away.", TextToSpeech.QUEUE_FLUSH, null);
+                button.setText("Stop");
+                save_button.setText("Save this route");
             }
         }
     }
@@ -378,8 +448,32 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
 
     }
 
+    public void onSaveButton(View view) {
+        if (isNavigating) {
+            Intent i = new Intent(getBaseContext(), SaveRoute.class);
+            startActivityForResult(i, 2);
+        } else {
+            Intent i = new Intent(getBaseContext(), ShowRoutes.class);
+            ArrayList<Integer> route_ids;
+            route_ids = new ArrayList<Integer>();
+            ArrayList<String> route_names;
+            route_names = new ArrayList<String>();
+            ArrayList<String> route_distances;
+            route_distances = new ArrayList<String>();
+            Cursor c = db.rawQuery("SELECT * FROM routes;", null);
+            while (c.moveToNext()) {
+                route_ids.add(Integer.parseInt(c.getString(0)));
+                route_names.add(c.getString(1));
+                route_distances.add(c.getString(2));
+            }
+            i.putExtra("route_ids", route_ids);
+            i.putExtra("route_names", route_names);
+            i.putExtra("route_distances", route_distances);
+            startActivityForResult(i, 4);
+        }
+    }
+
     public void onStartButton(View view) {
-        Button button = (Button) findViewById(R.id.button8);
         if (!isNavigating) {
 //            EditText edit =  (EditText) findViewById(R.id.editText2);
 //            String destination = edit.getText().toString();
@@ -434,14 +528,17 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                 timestamps.add(new Long(0));
             }
             isNavigating = true;
-            tts.speak("Starting Navigation. Your location is " + distanceToStr(road.mLength) + " away.", TextToSpeech.QUEUE_FLUSH, null);
+            navigatingDistance = distanceToStr(road.mLength);
+            tts.speak("Starting Navigation. Your location is " + navigatingDistance + " away.", TextToSpeech.QUEUE_FLUSH, null);
             button.setText("Stop");
+            save_button.setText("Save this route");
         } else {
             landmarks.clear();
             instructions.clear();
             timestamps.clear();
             isNavigating = false;
             button.setText("Start");
+            save_button.setText("Saved routes");
         }
     }
 
