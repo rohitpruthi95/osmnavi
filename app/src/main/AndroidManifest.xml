@@ -26,6 +26,8 @@
         </activity>
         <activity android:name=".AddButton" />
         <activity android:name=".ShowDb" />
+        <activity android:name=".Debug" />
+        <activity android:name=".ModifyRoute" />
         <activity android:name=".SaveRoute" />
         <activity android:name=".ShowRoutes" />
         <activity android:name=".AddTags" />

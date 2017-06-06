@@ -129,23 +129,23 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Show Route Info"
+            android:text="Debug"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:background="#000000"
             android:id="@+id/button9"
-            android:onClick="showDb" />
+            android:onClick="onDebugButton" />
 
         <Button
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Save Special Pt."
+            android:text="Clear Data"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:background="#000000"
             android:id="@+id/button10"
-            android:onClick="insertSpecial" />
+            android:onClick="clearData" />
     </TableRow>
 </LinearLayout>
 

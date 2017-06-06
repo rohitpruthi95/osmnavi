@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.TextView;
 
 /**
@@ -19,7 +20,7 @@ public class SaveRoute extends Activity {
     }
 
     public void onSave(View view) {
-        TextView routeNameView = (TextView)findViewById(R.id.editText2);
+        EditText routeNameView = (EditText)findViewById(R.id.editText2);
         String routeName = routeNameView.getText().toString();
         Intent returnIntent = new Intent();
         returnIntent.putExtra("name", routeName);

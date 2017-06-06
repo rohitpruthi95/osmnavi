@@ -155,13 +155,6 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
         setContentView(R.layout.activity_main);
         button = (Button) findViewById(R.id.button8);
         save_button = (Button) findViewById(R.id.button_save);
-        db=openOrCreateDatabase("StudentDB", Context.MODE_PRIVATE, null);
-        db.execSQL("CREATE TABLE IF NOT EXISTS myLocation(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT,long INT,description VARCHAR, timestamp INT, prev_id INT, next_id INT );");
-        db.execSQL("CREATE TABLE IF NOT EXISTS myTags(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag VARCHAR );");
-        db.execSQL("CREATE TABLE IF NOT EXISTS locationByTag(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag_id INTEGER, location_id INTEGER);");
-        db.execSQL("CREATE TABLE IF NOT EXISTS trackData(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT, long INT, type INT, timestamp INT );");
-        db.execSQL("CREATE TABLE IF NOT EXISTS routes(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name VARCHAR, distance VARCHAR);");
-        db.execSQL("CREATE TABLE IF NOT EXISTS routebyinstructions(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, routeid INTEGER, lat INT, long INT, description VARCHAR);");
         tts = new TextToSpeech(MainActivity.this, new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
@@ -190,6 +183,13 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
 
         buildGoogleApiClient();
         app = (MyApp) this.getApplicationContext();
+        db=app.myDb;
+        db.execSQL("CREATE TABLE IF NOT EXISTS myLocation(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT,long INT,description VARCHAR, timestamp INT, prev_id INT, next_id INT );");
+        db.execSQL("CREATE TABLE IF NOT EXISTS myTags(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag VARCHAR );");
+        db.execSQL("CREATE TABLE IF NOT EXISTS locationByTag(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag_id INTEGER, location_id INTEGER);");
+        db.execSQL("CREATE TABLE IF NOT EXISTS trackData(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT, long INT, type INT, timestamp INT );");
+        db.execSQL("CREATE TABLE IF NOT EXISTS routes(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name VARCHAR, distance VARCHAR);");
+        db.execSQL("CREATE TABLE IF NOT EXISTS routebyinstructions(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, routeid INTEGER, lat INT, long INT, description VARCHAR);");
         endingDestination = (PlaceAutocompleteFragment) getFragmentManager().findFragmentById(R.id.ending_destination_2);
         LatLng southWestBound = new LatLng(7.597576, 67.345201);
         LatLng northEastBound = new LatLng(38.733380, 96.964342);
@@ -375,19 +375,19 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                         min_longitude = longitude;
                     }
                 }
-                int max_latitude_int = (int) (max_latitude * 10000000);
-                int max_longitude_int = (int) (max_longitude * 10000000);
-                int min_latitude_int = (int) (min_latitude * 10000000);
-                int min_longitude_int = (int) (min_longitude * 10000000);
-                Cursor c2 = db.rawQuery("SELECT * FROM myLocation WHERE lat BETWEEN " + (min_latitude_int) + " AND " + (max_latitude_int) + " AND long BETWEEN " + (min_longitude_int) + " AND " + (max_longitude_int), null);
-                while (c2.moveToNext()) {
-                    double latitude = Double.parseDouble(c2.getString(1)) / 10000000;
-                    double longitude = Double.parseDouble(c2.getString(2)) / 10000000;
-                    String description = c2.getString(3);
-                    landmarks.add(new GeoPoint(latitude, longitude));
-                    instructions.add(description);
-                    timestamps.add(new Long(0));
-                }
+//                int max_latitude_int = (int) (max_latitude * 10000000);
+//                int max_longitude_int = (int) (max_longitude * 10000000);
+//                int min_latitude_int = (int) (min_latitude * 10000000);
+//                int min_longitude_int = (int) (min_longitude * 10000000);
+//                Cursor c2 = db.rawQuery("SELECT * FROM myLocation WHERE lat BETWEEN " + (min_latitude_int) + " AND " + (max_latitude_int) + " AND long BETWEEN " + (min_longitude_int) + " AND " + (max_longitude_int), null);
+//                while (c2.moveToNext()) {
+//                    double latitude = Double.parseDouble(c2.getString(1)) / 10000000;
+//                    double longitude = Double.parseDouble(c2.getString(2)) / 10000000;
+//                    String description = c2.getString(3);
+//                    landmarks.add(new GeoPoint(latitude, longitude));
+//                    instructions.add(description);
+//                    timestamps.add(new Long(0));
+//                }
                 isNavigating = true;
                 tts.speak("Starting Navigation. Your location is " + navigatingDistance + " away.", TextToSpeech.QUEUE_FLUSH, null);
                 button.setText("Stop");
@@ -518,7 +518,8 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
             int max_longitude_int = (int) (max_longitude * 10000000);
             int min_latitude_int = (int) (min_latitude * 10000000);
             int min_longitude_int = (int) (min_longitude * 10000000);
-            Cursor c = db.rawQuery("SELECT * FROM myLocation WHERE lat BETWEEN " + (min_latitude_int) + " AND " + (max_latitude_int) + " AND long BETWEEN " + (min_longitude_int) + " AND " + (max_longitude_int), null);
+//            Cursor c = db.rawQuery("SELECT * FROM myLocation WHERE lat BETWEEN " + (min_latitude_int) + " AND " + (max_latitude_int) + " AND long BETWEEN " + (min_longitude_int) + " AND " + (max_longitude_int), null);
+            Cursor c = db.rawQuery("SELECT * FROM myLocation", null);
             while (c.moveToNext()) {
                 double latitude = Double.parseDouble(c.getString(1)) / 10000000;
                 double longitude = Double.parseDouble(c.getString(2)) / 10000000;
@@ -670,8 +671,10 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
         Toast.makeText(getApplicationContext(), "Lat: "+current_lat + " Long: " + current_long, Toast.LENGTH_LONG).show();
     }
 
-    public void insertSpecial(View view) {
-        db.execSQL("INSERT INTO trackData VALUES(NULL, " + (int) (current_lat * 10000000) + ", " + (int) (current_long * 10000000) + ", 2, " + System.currentTimeMillis() + ");");
+    public void clearData(View view) {
+        db.execSQL("DELETE FROM mylocation;");
+        prev_id = 0;
+        Toast.makeText(this, "Data Cleared", Toast.LENGTH_SHORT).show();
     }
 
     public void getLocalInfo() {
@@ -728,5 +731,10 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     public void onLocationChanged(Location location) {
         current_lat = location.getLatitude();
         current_long = location.getLongitude();
+    }
+
+    public void onDebugButton(View view) {
+        Intent i = new Intent(getBaseContext(), Debug.class);
+        startActivity(i);
     }
 }
