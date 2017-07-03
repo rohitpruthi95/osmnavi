@@ -15,69 +15,61 @@
         android:id="@+id/ending_destination_2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="#000000"
+        android:textColor="#FFFFFF"
         android:name="com.google.android.gms.location.places.ui.PlaceAutocompleteFragment"
         />
 
     <ImageButton
         android:id="@+id/btnSpeak2"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@null"
+        android:layout_marginTop="10sp"
+        android:layout_weight="30"
+        android:background="#000000"
+        android:contentDescription="Speak the destination"
         android:onClick="promptSpeechInputView"
-        android:src="@drawable/ic_speaker_dark" />
-
-    <View
-        android:layout_width="fill_parent"
-        android:layout_height="5sp"
-        android:background="#FFFFFF"/>
+        android:src="@android:drawable/ic_btn_speak_now" />
 
     <Button
+        android:id="@+id/button8"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10sp"
+        android:layout_marginTop="10sp"
+        android:layout_weight="30"
+        android:background="#000000"
+        android:contentDescription="Start Navigation"
+        android:onClick="onStartButton"
+        android:text="Start"
+        android:textColor="#FFFFFF"
+        android:textSize="50sp" />
+
+    <Button
+        android:id="@+id/button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_weight="30"
-        android:text="Start"
-        android:textColor="#FFFFFF"
-        android:textSize="50sp"
         android:background="#000000"
-        android:id="@+id/button8"
-        android:onClick="onStartButton" />
-
-    <View
-        android:layout_width="fill_parent"
-        android:layout_height="5sp"
-        android:background="#FFFFFF"/>
-
-    <Button
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_weight="15"
+        android:contentDescription="Add a landmark or point of interest"
+        android:onClick="changeLayout"
         android:text="Add Text"
         android:textColor="#FFFFFF"
-        android:textSize="50sp"
-        android:background="#000000"
-        android:id="@+id/button"
-        android:onClick="changeLayout" />
+        android:textSize="50sp" />
 
-    <View
-        android:layout_width="fill_parent"
-        android:layout_height="5sp"
-        android:background="#FFFFFF"/>
 
     <Button
+        android:id="@+id/button_save"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_weight="15"
+        android:background="#000000"
+        android:onClick="onSaveButton"
         android:text="Saved routes"
         android:textColor="#FFFFFF"
         android:textSize="35sp"
-        android:background="#000000"
-        android:id="@+id/button_save"
-        android:onClick="onSaveButton" />
+        android:visibility="gone" />
 
-    <View
-        android:layout_width="fill_parent"
-        android:layout_height="5sp"
-        android:background="#FFFFFF"/>
 
     <TableRow
         android:layout_width="fill_parent"
@@ -85,25 +77,28 @@
         android:layout_height="wrap_content">
 
         <Button
+            android:id="@+id/button4"
             android:layout_width="wrap_content"
-            android:layout_weight="1"
             android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#000000"
+            android:onClick="showMessage1"
             android:text="Show DB"
             android:textColor="#FFFFFF"
             android:textSize="35sp"
-            android:background="#000000"
-            android:id="@+id/button4"
-            android:onClick="showMessage1" />
+            android:visibility="gone" />
+
         <Button
+            android:id="@+id/button5"
             android:layout_width="wrap_content"
-            android:layout_weight="1"
             android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#000000"
+            android:onClick="exportDb"
             android:text="Export DB"
             android:textColor="#FFFFFF"
             android:textSize="35sp"
-            android:background="#000000"
-            android:id="@+id/button5"
-            android:onClick="exportDb" />
+            android:visibility="gone" />
 
     </TableRow>
 
@@ -126,26 +121,28 @@
         android:layout_height="wrap_content">
 
         <Button
+            android:id="@+id/button9"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:background="#000000"
+            android:onClick="onDebugButton"
             android:text="Debug"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
-            android:background="#000000"
-            android:id="@+id/button9"
-            android:onClick="onDebugButton" />
+            android:visibility="gone" />
 
         <Button
+            android:id="@+id/button10"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:background="#000000"
+            android:onClick="clearData"
             android:text="Clear Data"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
-            android:background="#000000"
-            android:id="@+id/button10"
-            android:onClick="clearData" />
+            android:visibility="gone" />
     </TableRow>
 </LinearLayout>
 

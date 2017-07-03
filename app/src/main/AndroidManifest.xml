@@ -17,20 +17,20 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".MainActivity">
+        <activity android:name=".MainActivity" android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".AddButton" />
-        <activity android:name=".ShowDb" />
-        <activity android:name=".Debug" />
-        <activity android:name=".ModifyRoute" />
-        <activity android:name=".SaveRoute" />
-        <activity android:name=".ShowRoutes" />
-        <activity android:name=".AddTags" />
+        <activity android:name=".AddButton" android:screenOrientation="portrait" />
+        <activity android:name=".ShowDb" android:screenOrientation="portrait" />
+        <activity android:name=".Debug" android:screenOrientation="portrait" />
+        <activity android:name=".ModifyRoute" android:screenOrientation="portrait" />
+        <activity android:name=".SaveRoute" android:screenOrientation="portrait" />
+        <activity android:name=".ShowRoutes" android:screenOrientation="portrait" />
+        <activity android:name=".AddTags" android:screenOrientation="portrait" />
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyAlk3L0gMMux0Yl8JGnJ2Rs9f8izHorTq4"/>

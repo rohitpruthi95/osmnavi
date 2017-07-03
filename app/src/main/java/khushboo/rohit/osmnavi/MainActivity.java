@@ -167,7 +167,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
 //                    }
                     if (!app.hasRefreshed) {
                         System.out.println("Starting app");
-                        tts.speak("Thank you for installing OSM Navi. Enter any destination and press top button to start navigating. Use the second button to save a landmark at the current location.", TextToSpeech.QUEUE_FLUSH, null);
+//                        tts.speak("Thank you for installing OSM Navi. Enter any destination and press top button to start navigating. Use the second button to save a landmark at the current location.", TextToSpeech.QUEUE_FLUSH, null);
                         app.hasRefreshed = true;
                     }
 //                    else{
@@ -184,7 +184,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
         buildGoogleApiClient();
         app = (MyApp) this.getApplicationContext();
         db=app.myDb;
-        db.execSQL("CREATE TABLE IF NOT EXISTS myLocation(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT,long INT,description VARCHAR, timestamp INT, prev_id INT, next_id INT );");
+        db.execSQL("CREATE TABLE IF NOT EXISTS myLocation(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT,long INT,description VARCHAR, timestamp INT, prev_id INT, next_id INT, destination_lat INT, destination_long INT );");
         db.execSQL("CREATE TABLE IF NOT EXISTS myTags(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag VARCHAR );");
         db.execSQL("CREATE TABLE IF NOT EXISTS locationByTag(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tag_id INTEGER, location_id INTEGER);");
         db.execSQL("CREATE TABLE IF NOT EXISTS trackData(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, lat INT, long INT, type INT, timestamp INT );");
@@ -283,6 +283,12 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                 double long_float = current_long;
                 int lat_int = (int) (lat_float * 10000000);
                 int long_int = (int) (long_float * 10000000);
+                int endingdest_lat = 0;
+                int endingdest_long = 0;
+                if (isNavigating) {
+                    endingdest_lat = (int) (destinationLatLng.getLatLng().latitude * 10000000);
+                    endingdest_long = (int) (destinationLatLng.getLatLng().longitude * 10000000);
+                }
 
 
                 int new_row_id;
@@ -296,7 +302,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                     // update the next id of new point with this, and update the next id of previous one. If next id was 0, it will remain 0
                     db.execSQL("INSERT INTO myLocation VALUES(NULL, '" + lat_int + "','" +
                             long_int + "','" + myDescription + "','" + System.currentTimeMillis() +
-                            "','"+ prev_id +"','"+ next_id +"');");
+                            "','"+ prev_id +"','"+ next_id + "','" + endingdest_lat + "','" + endingdest_long + "');");
                     Cursor c_new = db.rawQuery("SELECT last_insert_rowid()",null);
                     c_new.moveToFirst();
                     new_row_id = Integer.parseInt(c_new.getString(0));
@@ -305,7 +311,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                 } else {
                     db.execSQL("INSERT INTO myLocation VALUES(NULL, '" + lat_int + "','" +
                             long_int + "','" + myDescription + "','" + System.currentTimeMillis() +
-                            "','"+ prev_id +"','0');");
+                            "','"+ prev_id + "','0','" + endingdest_lat + "','" + endingdest_long +"');");
                     Cursor c_new = db.rawQuery("SELECT last_insert_rowid()",null);
                     c_new.moveToFirst();
                     new_row_id = Integer.parseInt(c_new.getString(0));
@@ -345,6 +351,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                 ArrayList<String> result = data
                         .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
                 endingDestination.setText(result.get(0));
+                endingDestination.getView().findViewById(R.id.place_autocomplete_search_button).performClick();
             }
         } else if (requestCode == 4) {
             if (resultCode == RESULT_OK) {
@@ -524,9 +531,13 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                 double latitude = Double.parseDouble(c.getString(1)) / 10000000;
                 double longitude = Double.parseDouble(c.getString(2)) / 10000000;
                 String description = c.getString(3);
-                landmarks.add(new GeoPoint(latitude, longitude));
-                instructions.add(description);
-                timestamps.add(new Long(0));
+                int destlat_int = (int) (endPoint.getLatitude() * 10000000);
+                int destlong_int = (int) (endPoint.getLongitude() * 10000000);
+                if (Math.abs(Integer.parseInt(c.getString(7)) - destlat_int) < 100 && Math.abs(Integer.parseInt(c.getString(8)) - destlong_int) < 100) {
+                    landmarks.add(new GeoPoint(latitude, longitude));
+                    instructions.add(description);
+                    timestamps.add(new Long(0));
+                }
             }
             isNavigating = true;
             navigatingDistance = distanceToStr(road.mLength);
@@ -688,7 +699,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                     if (Math.abs(timestamps.get(i) - System.currentTimeMillis()) > 60000) {
                         System.out.println("Lat_diff: " + Math.abs(landmarks.get(i).getLatitude() - lat_float));
                         System.out.println("Long diff: " + Math.abs(landmarks.get(i).getLongitude() - long_float));
-                        Toast.makeText(getApplicationContext(), instructions.get(i), Toast.LENGTH_LONG).show();
+//                        Toast.makeText(getApplicationContext(), instructions.get(i), Toast.LENGTH_LONG).show();
                         System.out.println("String found: " + instructions.get(i));
                         tts.speak(instructions.get(i), TextToSpeech.QUEUE_FLUSH, null);
                         timestamps.set(i, System.currentTimeMillis());
