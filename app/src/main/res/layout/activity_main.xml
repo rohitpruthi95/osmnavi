@@ -15,6 +15,7 @@
         android:id="@+id/ending_destination_2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_weight="0.2"
         android:background="#000000"
         android:textColor="#FFFFFF"
         android:name="com.google.android.gms.location.places.ui.PlaceAutocompleteFragment"
@@ -25,7 +26,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10sp"
-        android:layout_weight="30"
+        android:layout_weight="0.2"
         android:background="#000000"
         android:contentDescription="Speak the destination"
         android:onClick="promptSpeechInputView"
@@ -37,7 +38,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="10sp"
         android:layout_marginTop="10sp"
-        android:layout_weight="30"
+        android:layout_weight="0.2"
         android:background="#000000"
         android:contentDescription="Start Navigation"
         android:onClick="onStartButton"
@@ -49,11 +50,25 @@
         android:id="@+id/button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="30"
+        android:layout_weight="0.2"
+        android:layout_marginBottom="10sp"
         android:background="#000000"
-        android:contentDescription="Add a landmark or point of interest"
+        android:contentDescription="Add a landmark or point of interest at current location"
         android:onClick="changeLayout"
         android:text="Add Text"
+        android:textColor="#FFFFFF"
+        android:textSize="50sp" />
+
+    <Button
+        android:id="@+id/buttonqadd"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.2"
+        android:layout_marginBottom="10sp"
+        android:background="#000000"
+        android:contentDescription="Quickly add a landmark or point of interest at current location"
+        android:onClick="quickAdd"
+        android:text="Quick Add"
         android:textColor="#FFFFFF"
         android:textSize="50sp" />
 
@@ -74,7 +89,8 @@
     <TableRow
         android:layout_width="fill_parent"
         android:layout_weight="10"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:visibility="gone">
 
         <Button
             android:id="@+id/button4"
@@ -110,15 +126,16 @@
         <!--android:layout_marginTop="59dp"-->
         <!--android:text="lat, long" />-->
 
-    <View
-        android:layout_width="fill_parent"
-        android:layout_height="5sp"
-        android:background="#FFFFFF"/>
+    <!--<View-->
+        <!--android:layout_width="fill_parent"-->
+        <!--android:layout_height="5sp"-->
+        <!--android:background="#FFFFFF"/>-->
 
     <TableRow
         android:layout_width="fill_parent"
         android:layout_weight="10"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:visibility="gone">
 
         <Button
             android:id="@+id/button9"

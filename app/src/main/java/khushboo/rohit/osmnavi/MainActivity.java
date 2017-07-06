@@ -400,6 +400,52 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                 button.setText("Stop");
                 save_button.setText("Save this route");
             }
+        } else if (requestCode == 6) {
+            if (resultCode == RESULT_OK && null != data) {
+
+                ArrayList<String> result = data
+                        .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                String myDescription = result.get(0);
+                double lat_float = current_lat;
+                double long_float = current_long;
+                int lat_int = (int) (lat_float * 10000000);
+                int long_int = (int) (long_float * 10000000);
+                int endingdest_lat = 0;
+                int endingdest_long = 0;
+                if (isNavigating) {
+                    endingdest_lat = (int) (destinationLatLng.getLatLng().latitude * 10000000);
+                    endingdest_long = (int) (destinationLatLng.getLatLng().longitude * 10000000);
+                }
+
+
+                int new_row_id;
+                if (prev_id > 0) {
+                    Cursor c = db.rawQuery("SELECT * from myLocation where id = '" + prev_id + "'", null);
+                    c.moveToFirst();
+                    int next_id;
+                    next_id = Integer.parseInt(c.getString(6)); // The next id of prev, if present
+                    c.close();
+
+                    // update the next id of new point with this, and update the next id of previous one. If next id was 0, it will remain 0
+                    db.execSQL("INSERT INTO myLocation VALUES(NULL, '" + lat_int + "','" +
+                            long_int + "','" + myDescription + "','" + System.currentTimeMillis() +
+                            "','"+ prev_id +"','"+ next_id + "','" + endingdest_lat + "','" + endingdest_long + "');");
+                    Cursor c_new = db.rawQuery("SELECT last_insert_rowid()",null);
+                    c_new.moveToFirst();
+                    new_row_id = Integer.parseInt(c_new.getString(0));
+                    c_new.close();
+                    db.execSQL("UPDATE myLocation SET next_id = '" + new_row_id + "' WHERE id = '" + prev_id + "'");
+                } else {
+                    db.execSQL("INSERT INTO myLocation VALUES(NULL, '" + lat_int + "','" +
+                            long_int + "','" + myDescription + "','" + System.currentTimeMillis() +
+                            "','"+ prev_id + "','0','" + endingdest_lat + "','" + endingdest_long +"');");
+                    Cursor c_new = db.rawQuery("SELECT last_insert_rowid()",null);
+                    c_new.moveToFirst();
+                    new_row_id = Integer.parseInt(c_new.getString(0));
+                    c_new.close();
+                }
+                prev_id = new_row_id;
+            }
         }
     }
 
@@ -747,5 +793,21 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     public void onDebugButton(View view) {
         Intent i = new Intent(getBaseContext(), Debug.class);
         startActivity(i);
+    }
+
+    public void quickAdd(View view) {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                getString(R.string.speech_prompt));
+        try {
+            startActivityForResult(intent, 6);
+        } catch (ActivityNotFoundException a) {
+            Toast.makeText(getApplicationContext(),
+                    getString(R.string.speech_not_supported),
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 }
