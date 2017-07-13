@@ -48,6 +48,22 @@
         android:background="#FFFFFF"/>
 
     <Button
+        android:id="@+id/buttonNext"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="20"
+        android:text="Next Instruction"
+        android:textColor="#FFFFFF"
+        android:textSize="30sp"
+        android:background="#000000"
+        android:onClick="onNextButton"/>
+
+    <View
+        android:layout_width="fill_parent"
+        android:layout_height="5sp"
+        android:background="#FFFFFF"/>
+
+    <Button
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_weight="15"

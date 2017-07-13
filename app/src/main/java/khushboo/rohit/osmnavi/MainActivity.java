@@ -83,6 +83,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     long time_diff = 60*1000;
     Handler h = new Handler();
     int delay = 1000; //milliseconds
+    int osmNumInstructions, osmNextInstruction;
     Button start,stop;
     Button button, save_button;
     String navigatingDistance;
@@ -501,6 +502,8 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                 System.out.println("Added: " + loc.getLatitude() + ", " + loc.getLongitude());
                 instructions.add(removeUnnamed(road.mNodes.get(i).mInstructions));
                 timestamps.add(new Long(0));
+                osmNumInstructions =road.mNodes.size();
+                osmNextInstruction = 1;
                 if (loc.getLatitude() > max_latitude) {
                     max_latitude = loc.getLatitude();
                 }
@@ -692,6 +695,9 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                         System.out.println("String found: " + instructions.get(i));
                         tts.speak(instructions.get(i), TextToSpeech.QUEUE_FLUSH, null);
                         timestamps.set(i, System.currentTimeMillis());
+                        if (i < osmNumInstructions - 1) {
+                            osmNextInstruction = i + 1;
+                        }
                         break;
                     }
                 }
@@ -736,5 +742,13 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     public void onDebugButton(View view) {
         Intent i = new Intent(getBaseContext(), Debug.class);
         startActivity(i);
+    }
+
+    public void onNextButton(View view) {
+        if (isNavigating) {
+            float[] results = new float[3];
+            Location.distanceBetween(current_lat, current_long, landmarks.get(osmNextInstruction).getLatitude(), landmarks.get(osmNextInstruction).getLongitude(), results);
+            tts.speak("After " + results[0] + " meters, " + instructions.get(osmNextInstruction), TextToSpeech.QUEUE_FLUSH, null);
+        }
     }
 }
