@@ -92,7 +92,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     ArrayList<GeoPoint> landmarks;
     ArrayList<String> instructions;
     ArrayList<Long> timestamps;
-    RoadManager roadManager;
+    OSRMRoadManager roadManager;
     Location mLastLocation;
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
@@ -138,7 +138,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
 //        IMapController mapController = map.getController();
 //        mapController.setZoom(9);
 //        mapController.setCenter(startPoint);
-        roadManager = new MapQuestRoadManager("NSmn1F81WDzC9UVc5AdW54E0uMn1ozEG");
+        roadManager = new OSRMRoadManager(this);
 //        ArrayList<GeoPoint> waypoints = new ArrayList<GeoPoint>();
 //        waypoints.add(startPoint);
 //        GeoPoint endPoint = new GeoPoint(28.545213,77.192219);
@@ -489,32 +489,35 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
             ArrayList<GeoPoint> waypoints = new ArrayList<GeoPoint>();
             waypoints.add(startPoint);
             waypoints.add(endPoint);
-            roadManager.addRequestOption("routeType=pedestrian");
+//            roadManager.addRequestOption("routeType=pedestrian");
+            roadManager.setService("http://router.project-osrm.org/route/v1/pedestrian/");
             double max_latitude = current_lat;
             double min_latitude = current_lat;
             double max_longitude = current_long;
             double min_longitude = current_long;
 
             Road road = roadManager.getRoad(waypoints);
-            for (int i = 0; i < road.mNodes.size(); i++) {
-                GeoPoint loc = road.mNodes.get(i).mLocation;
-                landmarks.add(new GeoPoint(loc.getLatitude(), loc.getLongitude()));
-                System.out.println("Added: " + loc.getLatitude() + ", " + loc.getLongitude());
-                instructions.add(removeUnnamed(road.mNodes.get(i).mInstructions));
-                timestamps.add(new Long(0));
-                osmNumInstructions =road.mNodes.size();
-                osmNextInstruction = 1;
-                if (loc.getLatitude() > max_latitude) {
-                    max_latitude = loc.getLatitude();
-                }
-                if (loc.getLatitude() < min_latitude) {
-                    min_latitude = loc.getLatitude();
-                }
-                if (loc.getLongitude() > max_longitude) {
-                    max_longitude = loc.getLongitude();
-                }
-                if (loc.getLongitude() < min_longitude) {
-                    min_longitude = loc.getLongitude();
+            for (int i = 1; i < road.mNodes.size(); i++) {
+                if (road.mNodes.get(i).mInstructions != null && !road.mNodes.get(i).mInstructions.isEmpty()) {
+                    GeoPoint loc = road.mNodes.get(i).mLocation;
+                    landmarks.add(new GeoPoint(loc.getLatitude(), loc.getLongitude()));
+                    System.out.println("Added: " + loc.getLatitude() + ", " + loc.getLongitude() + " " + road.mNodes.get(i).mInstructions);
+                    instructions.add(removeUnnamed(road.mNodes.get(i).mInstructions));
+                    timestamps.add(new Long(0));
+                    osmNumInstructions = road.mNodes.size();
+                    osmNextInstruction = 0;
+                    if (loc.getLatitude() > max_latitude) {
+                        max_latitude = loc.getLatitude();
+                    }
+                    if (loc.getLatitude() < min_latitude) {
+                        min_latitude = loc.getLatitude();
+                    }
+                    if (loc.getLongitude() > max_longitude) {
+                        max_longitude = loc.getLongitude();
+                    }
+                    if (loc.getLongitude() < min_longitude) {
+                        min_longitude = loc.getLongitude();
+                    }
                 }
             }
             int max_latitude_int = (int) (max_latitude * 10000000);
@@ -559,7 +562,9 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     }
 
     public String removeUnnamed(String instruction) {
-        return instruction.replaceAll("unnamed", "this");
+//        String newinstruction = instruction.replaceAll("unnamed", "this");
+        return instruction.replaceAll("(.*)waypoint(.*)", "You have arrived at your destination.");
+//        return newinstruction;
     }
 
     public String distanceToStr(double length) {
