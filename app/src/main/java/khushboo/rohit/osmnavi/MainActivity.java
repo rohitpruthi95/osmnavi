@@ -748,7 +748,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
         if (isNavigating) {
             float[] results = new float[3];
             Location.distanceBetween(current_lat, current_long, landmarks.get(osmNextInstruction).getLatitude(), landmarks.get(osmNextInstruction).getLongitude(), results);
-            tts.speak("After " + results[0] + " meters, " + instructions.get(osmNextInstruction), TextToSpeech.QUEUE_FLUSH, null);
+            tts.speak("After " + ((int) results[0]) + " meters, " + instructions.get(osmNextInstruction), TextToSpeech.QUEUE_FLUSH, null);
         }
     }
 }
