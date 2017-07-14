@@ -101,15 +101,27 @@
         android:layout_height="wrap_content">
 
         <Button
+            android:id="@+id/button4"
             android:layout_width="wrap_content"
-            android:layout_weight="1"
             android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#000000"
+            android:onClick="showMessage1"
             android:text="Show DB"
             android:textColor="#FFFFFF"
             android:textSize="35sp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/buttonAM"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
             android:background="#000000"
-            android:id="@+id/button4"
-            android:onClick="showMessage1" />
+            android:onClick="aroundMe"
+            android:text="Around Me"
+            android:textColor="#FFFFFF"
+            android:textSize="35sp" />
         <Button
             android:layout_width="wrap_content"
             android:layout_weight="1"

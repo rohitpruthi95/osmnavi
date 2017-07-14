@@ -37,6 +37,7 @@ import org.osmdroid.bonuspack.routing.MapQuestRoadManager;
 import org.osmdroid.bonuspack.routing.OSRMRoadManager;
 import org.osmdroid.bonuspack.routing.Road;
 import org.osmdroid.bonuspack.routing.RoadManager;
+import org.osmdroid.bonuspack.utils.HttpConnection;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
@@ -75,6 +76,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
         GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
     private static final int REQ_CODE_SPEECH_INPUT = 3;
+    private static final String OSM_EDITING_URL = "http://api.openstreetmap.org/api/0.6//map?bbox=";
     MyItemizedOverlay myItemizedOverlay = null;
     SQLiteDatabase db;
     private MediaRecorder myAudioRecorder;
@@ -755,5 +757,34 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
             Location.distanceBetween(current_lat, current_long, landmarks.get(osmNextInstruction).getLatitude(), landmarks.get(osmNextInstruction).getLongitude(), results);
             tts.speak("After " + ((int) results[0]) + " meters, " + instructions.get(osmNextInstruction), TextToSpeech.QUEUE_FLUSH, null);
         }
+    }
+
+    public static String requestStringFromUrl(String url, String userAgent) {
+        HttpConnection connection = new HttpConnection();
+        if (userAgent != null)
+            connection.setUserAgent(userAgent);
+        connection.doGet(url);
+        String result = connection.getContentAsString();
+        connection.close();
+        return result;
+    }
+
+    /** sends an http request, and returns the whole content result in a String.
+     * @param url
+     * @return the whole content, or null if any issue.
+     */
+    public static String requestStringFromUrl(String url) {
+        return requestStringFromUrl(url, null);
+    }
+
+    public void aroundMe(View view) {
+        String min_lat = "" + (current_lat - 0.0005);
+        String max_lat = "" + (current_lat + 0.0005);
+        String min_long = "" + (current_long - 0.0005);
+        String max_long = "" + (current_long + 0.0005);
+        String request_url = OSM_EDITING_URL + min_long + "," + min_lat + "," + max_long + "," +  max_lat;
+        String raw_text = requestStringFromUrl(request_url);
+        Toast.makeText(getApplicationContext(), raw_text, Toast.LENGTH_LONG).show();
+        System.out.println(raw_text);
     }
 }
