@@ -32,13 +32,17 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.apache.commons.lang3.ObjectUtils;
 import org.osmdroid.api.IMapController;
+import org.osmdroid.bonuspack.location.POI;
 import org.osmdroid.bonuspack.routing.MapQuestRoadManager;
 import org.osmdroid.bonuspack.routing.OSRMRoadManager;
 import org.osmdroid.bonuspack.routing.Road;
+import org.osmdroid.bonuspack.location.OverpassAPIProvider;
 import org.osmdroid.bonuspack.routing.RoadManager;
 import org.osmdroid.bonuspack.utils.HttpConnection;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
+import org.osmdroid.util.BoundingBox;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Polyline;
@@ -70,6 +74,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 public class MainActivity extends FragmentActivity implements GoogleApiClient.ConnectionCallbacks,
@@ -85,7 +90,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     long time_diff = 60*1000;
     Handler h = new Handler();
     int delay = 1000; //milliseconds
-    int osmNumInstructions, osmNextInstruction;
+    int osmNumInstructions, osmNextInstruction, prefetch_nextInstruction;
     Button start,stop;
     Button button, save_button;
     String navigatingDistance;
@@ -104,9 +109,16 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     GPSTracker gps;
     MyApp app;
     double current_lat, current_long;
+    GeoPoint previous_location;
     private String TAG = MainActivity.class.getSimpleName();
 
+    // added by sac
+    OverpassAPIProvider overpassProvider;
+    Map<Long, String> tagdescriptions;
+    ArrayList<Long> tst; // timestamp for pre scheduling of future instructions, filling the empty spaces
+
     @Override public void onCreate(Bundle savedInstanceState) {
+        // System.out.println("onCreate function called");
         super.onCreate(savedInstanceState);
 
         if (PackageManager.PERMISSION_GRANTED !=
@@ -125,12 +137,12 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
         MediaButtonIntentReceiver r = new MediaButtonIntentReceiver();
         filter.setPriority(10000); //this line sets receiver priority
         registerReceiver(r, filter);
-        StrictMode.ThreadPolicy policy = new
-        StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
         landmarks = new ArrayList<GeoPoint>();
         instructions = new ArrayList<String>();
         timestamps = new ArrayList<Long>();
+        tst = new ArrayList<>();
 //        MapView map = (MapView) findViewById(R.id.map);
 //        map.setTileSource(TileSourceFactory.MAPNIK);
 //        map.setBuiltInZoomControls(true);
@@ -170,7 +182,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
 //                    }
                     if (!app.hasRefreshed) {
                         System.out.println("Starting app");
-                        tts.speak("Thank you for installing OSM Navi. Enter any destination and press top button to start navigating. Use the second button to save a landmark at the current location.", TextToSpeech.QUEUE_FLUSH, null);
+                        tts.speak("Welcome to OSM Navi. Enter any destination and press top button to start navigating. Use the second button to save a landmark at the current location.", TextToSpeech.QUEUE_FLUSH, null);
                         app.hasRefreshed = true;
                     }
 //                    else{
@@ -226,6 +238,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     }
 
     public void promptSpeechInputView(View view) {
+        // System.out.println("promptSpeechInputView function called");
         promptSpeechInput();
     }
 
@@ -277,7 +290,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-
+        // System.out.println("onActivityResult function called");
         if (requestCode == 1) {
             if(resultCode == Activity.RESULT_OK){
                 String myDescription = data.getStringExtra("result");
@@ -365,6 +378,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                     landmarks.add(new GeoPoint(latitude, longitude));
                     instructions.add(description);
                     timestamps.add(new Long(0));
+                    tst.add(new Long(0));
                     if (latitude > max_latitude) {
                         max_latitude = latitude;
                     }
@@ -452,6 +466,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     }
 
     public void onSaveButton(View view) {
+        // System.out.println("onSaveButton function called");
         if (isNavigating) {
             Intent i = new Intent(getBaseContext(), SaveRoute.class);
             startActivityForResult(i, 2);
@@ -477,6 +492,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     }
 
     public void onStartButton(View view) {
+        // System.out.println("onStartButton function called");
         if (!isNavigating) {
 //            EditText edit =  (EditText) findViewById(R.id.editText2);
 //            String destination = edit.getText().toString();
@@ -486,6 +502,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                 return;
             }
             GeoPoint startPoint = new GeoPoint(current_lat, current_long);
+            previous_location = startPoint;
             //            GeoPoint endPoint = new GeoPoint(Double.parseDouble(destination.split(",")[0]), Double.parseDouble(destination.split(",")[1]));
             GeoPoint endPoint = new GeoPoint(destinationLatLng.getLatLng().latitude, destinationLatLng.getLatLng().longitude);
             ArrayList<GeoPoint> waypoints = new ArrayList<GeoPoint>();
@@ -493,21 +510,98 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
             waypoints.add(endPoint);
 //            roadManager.addRequestOption("routeType=pedestrian");
             roadManager.setService("http://router.project-osrm.org/route/v1/pedestrian/");
+            // roadManager.addRequestOption("alternatives=3");
             double max_latitude = current_lat;
             double min_latitude = current_lat;
             double max_longitude = current_long;
             double min_longitude = current_long;
+            System.out.println("Starting point is: "+startPoint.toDoubleString());
 
+            // original line earlier
             Road road = roadManager.getRoad(waypoints);
+            // System.out.println("Number of roads found: " + road.length);
+
+            // added check
+            boolean roadstatusflag = true;
+            if (road.mStatus != Road.STATUS_OK) {
+                System.out.println("~~~~~~~THERE WAS ISSUE WITH THE STATUS OF THE ROADS~~~~~~~~");
+                Toast.makeText(getApplicationContext(),"Network error!",Toast.LENGTH_LONG).show();
+                tts.speak("Network Issue. Please try again!", TextToSpeech.QUEUE_FLUSH, null);
+                roadstatusflag = false;
+            }
+            overpassProvider = new OverpassAPIProvider();
             for (int i = 1; i < road.mNodes.size(); i++) {
                 if (road.mNodes.get(i).mInstructions != null && !road.mNodes.get(i).mInstructions.isEmpty()) {
                     GeoPoint loc = road.mNodes.get(i).mLocation;
+
+                    // added by sac
+                    BoundingBox bb = new BoundingBox(loc.getLatitude()+0.000001,loc.getLongitude()+0.000001, loc.getLatitude()-0.000001, loc.getLongitude()-0.000001);
+
+                    // url for highway type
+                    String urlforpoirequest = overpassProvider.urlForPOISearch("\"highway\"", bb, 10, 25);
+                    ArrayList<POI> points = overpassProvider.getPOIsFromUrl(urlforpoirequest);
+                    if (points == null) System.out.println("overpass returning nothing");
+                    if (points != null) System.out.println("Size is: "+points.size());
+                    int ptr = 0;
+                    while (points != null && ptr < points.size()) {
+                        String typeofhighway = points.get(ptr).mDescription;
+                        if (typeofhighway.trim().matches("traffic_signals") || typeofhighway.trim().matches("motorway_junction")) {
+                            landmarks.add(points.get(ptr).mLocation);
+                            System.out.println("Added: "+points.get(ptr).mLocation+" "+typeofhighway);
+                            instructions.add("Presence of "+typeofhighway);
+                        }
+                        // tagdescriptions.put(points.get(0).mId, loc.getLatitude()+","+loc.getLongitude()+":"+points.get(0).mDescription);
+                        // System.out.println("Tags for: "+points.get(ptr).mId+" -> "+points.get(ptr).mCategory+" "+points.get(ptr).mType+" "+points.get(ptr).mLocation.toDoubleString()+" "+points.get(ptr).mDescription);
+                        ptr++;
+                    }
+
+                    // url for lanes
+                    System.out.println("Starting to find the number of lanes");
+                    String urlforpoirequest2 = overpassProvider.urlForPOISearch("\"lanes\"", bb, 10, 25);
+                    ArrayList<POI> points2 = overpassProvider.getPOIsFromUrl(urlforpoirequest2);
+                    if (points2 == null) System.out.println("overpass returning nothing");
+                    if (points2 != null) System.out.println("Size is: "+points2.size());
+                    ptr = 0;
+                    while (points2 != null && ptr < points2.size()) {
+                        String lanes = points2.get(ptr).mDescription;
+                        if (lanes != null) {
+                            // landmarks.add(points.get(ptr).mLocation);
+                            System.out.println("For lanes Added: "+points2.get(ptr).mLocation+" "+lanes+" "+points2.get(ptr).mType);
+                            // instructions.add("Presence of "+typeofhighway);
+                        }
+                        // tagdescriptions.put(points.get(0).mId, loc.getLatitude()+","+loc.getLongitude()+":"+points.get(0).mDescription);
+                        // System.out.println("Tags for: "+points.get(ptr).mId+" -> "+points.get(ptr).mCategory+" "+points.get(ptr).mType+" "+points.get(ptr).mLocation.toDoubleString()+" "+points.get(ptr).mDescription);
+                        ptr++;
+                    }
+
+                    // url for surface type
+                    System.out.println("Starting to find the type of surface");
+                    String urlforpoirequest3 = overpassProvider.urlForPOISearch("\"surface\"", bb, 10, 25);
+                    ArrayList<POI> points3 = overpassProvider.getPOIsFromUrl(urlforpoirequest3);
+                    if (points3 == null) System.out.println("overpass returning nothing");
+                    if (points3 != null) System.out.println("Size is: "+points3.size());
+                    ptr = 0;
+                    while (points3 != null && ptr < points3.size()) {
+                        String surf = points3.get(ptr).mDescription;
+                        if (surf != null) {
+                            // landmarks.add(points.get(ptr).mLocation);
+                            System.out.println("For surface Added: "+points3.get(ptr).mLocation+" "+surf+" "+points3.get(ptr).mType);
+                            // instructions.add("Presence of "+typeofhighway);
+                        }
+                        // tagdescriptions.put(points.get(0).mId, loc.getLatitude()+","+loc.getLongitude()+":"+points.get(0).mDescription);
+                        // System.out.println("Tags for: "+points.get(ptr).mId+" -> "+points.get(ptr).mCategory+" "+points.get(ptr).mType+" "+points.get(ptr).mLocation.toDoubleString()+" "+points.get(ptr).mDescription);
+                        ptr++;
+                    }
+
                     landmarks.add(new GeoPoint(loc.getLatitude(), loc.getLongitude()));
                     System.out.println("Added: " + loc.getLatitude() + ", " + loc.getLongitude() + " " + road.mNodes.get(i).mInstructions);
                     instructions.add(removeUnnamed(road.mNodes.get(i).mInstructions));
+
                     timestamps.add(new Long(0));
+                    tst.add(new Long(0));
                     osmNumInstructions = road.mNodes.size();
                     osmNextInstruction = 0;
+                    prefetch_nextInstruction = 0;
                     if (loc.getLatitude() > max_latitude) {
                         max_latitude = loc.getLatitude();
                     }
@@ -522,6 +616,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                     }
                 }
             }
+            // System.exit(0);
             int max_latitude_int = (int) (max_latitude * 10000000);
             int max_longitude_int = (int) (max_longitude * 10000000);
             int min_latitude_int = (int) (min_latitude * 10000000);
@@ -535,16 +630,20 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
                 landmarks.add(new GeoPoint(latitude, longitude));
                 instructions.add(description);
                 timestamps.add(new Long(0));
+                tst.add(new Long(0));
             }
-            isNavigating = true;
-            navigatingDistance = distanceToStr(road.mLength);
-            tts.speak("Starting Navigation. Your location is " + navigatingDistance + " away.", TextToSpeech.QUEUE_FLUSH, null);
-            button.setText("Stop");
-            save_button.setText("Save this route");
+            if (roadstatusflag) {
+                isNavigating = true;
+                navigatingDistance = distanceToStr(road.mLength);
+                tts.speak("Starting Navigation. Your location is " + navigatingDistance + " away.", TextToSpeech.QUEUE_FLUSH, null);
+                button.setText("Stop");
+                save_button.setText("Save this route");
+            }
         } else {
             landmarks.clear();
             instructions.clear();
             timestamps.clear();
+            tst.clear();
             isNavigating = false;
             button.setText("Start");
             save_button.setText("Saved routes");
@@ -688,13 +787,64 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
     }
 
     public void getLocalInfo() {
+        // System.out.println("getLocalInfo function called");
 //        gps.getLocation();
         if (isNavigating) {
             double lat_float = current_lat;
             double long_float = current_long;
+
+            // added by sac
+            // below for loop need to be tested
+            // comment out this thing if there is some issue
+            if (prefetch_nextInstruction < landmarks.size()) {
+                int i = prefetch_nextInstruction;
+                float[] comp1 = new float[1];
+                float[] comp2 = new float[1];
+                Location.distanceBetween(current_lat, current_long, landmarks.get(i).getLatitude(),landmarks.get(i).getLongitude(), comp1);
+                Location.distanceBetween(previous_location.getLatitude(), previous_location.getLongitude(), landmarks.get(i).getLatitude(),landmarks.get(i).getLongitude(), comp2);
+                if (Math.abs(tst.get(i) - System.currentTimeMillis()) > 60000) {
+                    System.out.println(comp1[0] + " " + comp2[0]);
+                    if (comp1[0] > 12.0) {
+                        int x = (int) comp1[0];
+                        int y = (int) (comp2[0])-12;
+                        if (x <= y/5) {
+                            tts.speak("In "+x+" meters "+instructions.get(i), TextToSpeech.QUEUE_FLUSH, null);
+                        }
+                        else if (x <= 3*y/6) {
+                            tts.speak("Continue straight for another "+x+" meters", TextToSpeech.QUEUE_FLUSH, null);
+                        }
+                        else if (x <= y+10) {
+                            tts.speak("You are on the correct path. Next turn will be in "+x+" meters", TextToSpeech.QUEUE_FLUSH, null);
+                        }
+                    }
+                    else if (Math.abs(tst.get(i)) <= Math.abs(timestamps.get(i))) {
+                        prefetch_nextInstruction = i + 1;
+                        previous_location = new GeoPoint(landmarks.get(i).getLatitude(), landmarks.get(i).getLongitude());
+                    }
+                    tst.set(i, System.currentTimeMillis());
+                }
+                /*if (comp1[0] < comp2[0]/4.0) {
+                    if (true) {
+                        // System.out.println("Lat_diff: " + Math.abs(landmarks.get(i).getLatitude() - lat_float));
+                        // System.out.println("Long diff: " + Math.abs(landmarks.get(i).getLongitude() - long_float));
+                        // Toast.makeText(getApplicationContext(), instructions.get(i), Toast.LENGTH_LONG).show();
+                        // System.out.println("String found: " + instructions.get(i));
+                        tts.speak("In "+((int) (comp1[0]))+" meters "+instructions.get(i), TextToSpeech.QUEUE_FLUSH, null);
+                        // timestamps.set(i, System.currentTimeMillis());
+                        if (i < osmNumInstructions - 1) {
+                           prefetch_nextInstruction = i + 1;
+                           previous_location = new GeoPoint(landmarks.get(i).getLatitude(), landmarks.get(i).getLongitude());
+                        }
+                        break;
+                    }
+                }*/
+            }
+            // comment out till here
+
+            // this below section works
             db.execSQL("INSERT INTO trackData VALUES(NULL, " + (int) (current_lat * 10000000) + ", " + (int) (current_long * 10000000) + ", 1, " + System.currentTimeMillis() + ");");
             for (int i = 0; i < landmarks.size(); i++) {
-                if (Math.abs(landmarks.get(i).getLatitude() - lat_float) < 0.00006 && Math.abs(landmarks.get(i).getLongitude() - long_float) < 0.00006) {
+                if (Math.abs(landmarks.get(i).getLatitude() - lat_float) < 0.0001 && Math.abs(landmarks.get(i).getLongitude() - long_float) < 0.0001) {
                     if (Math.abs(timestamps.get(i) - System.currentTimeMillis()) > 60000) {
                         System.out.println("Lat_diff: " + Math.abs(landmarks.get(i).getLatitude() - lat_float));
                         System.out.println("Long diff: " + Math.abs(landmarks.get(i).getLongitude() - long_float));
@@ -721,8 +871,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.Co
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
 
 
-        mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
-                mGoogleApiClient);
+        mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
         if (mLastLocation != null) {
             current_lat = mLastLocation.getLatitude();
             current_long = mLastLocation.getLongitude();
